@@ -5,15 +5,27 @@ from typing import Optional
 from fastapi import FastAPI, Header, HTTPException, Request
 from dotenv import load_dotenv
 
-from .models import IntrusionEvent
-from .security import enforce_api_key, enforce_lan_only
-from .rate_limit import allow
+from app.schemas.models import IntrusionEvent
+from app.services.security import enforce_api_key, enforce_lan_only
+from app.services.rate_limit import allow
+
+# NEW:
+from .api.endpoints.drone import router as drone_router
+from .services.dji_controller_client import DJIControllerClient
 
 load_dotenv()
 
 MAX_BODY_BYTES = int(os.getenv("MAX_BODY_BYTES", "8192"))
 
 app = FastAPI()
+
+# NEW: include router
+app.include_router(drone_router)
+
+# NEW: clean shutdown for httpx client
+@app.on_event("shutdown")
+async def _shutdown():
+    await DJIControllerClient.aclose_singleton()
 
 @app.get("/health")
 def health():
