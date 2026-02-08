@@ -1,8 +1,9 @@
 import os
 import time
 from typing import Optional
+import httpx
 
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Request, BackgroundTasks, Request, HTTPException
 from dotenv import load_dotenv
 
 from app.schemas.models import IntrusionEvent
@@ -19,6 +20,26 @@ MAX_BODY_BYTES = int(os.getenv("MAX_BODY_BYTES", "8192"))
 
 app = FastAPI()
 
+DRONE_COMMAND_URL = os.getenv("DRONE_COMMAND_URL", "http://127.0.0.1:9090/commands")
+
+def build_scripted_flight_path(event: dict) -> dict:
+    # Replace this later with your real flight path generator
+    return {
+        "mission_id": f"intrusion-{int(time.time())}",
+        "source_event": event,
+        "commands": [
+            {"type": "yaw", "deg": 30, "duration_ms": 500},
+            {"type": "forward", "mps": 0.4, "duration_ms": 2000},
+            {"type": "hover", "duration_ms": 1000},
+        ],
+    }
+
+async def post_commands(cmd_payload: dict) -> None:
+    async with httpx.AsyncClient(timeout=5) as client:
+        r = await client.post(DRONE_COMMAND_URL, json=cmd_payload)
+        # Helpful debug
+        print(f"[CMD] POST -> {DRONE_COMMAND_URL} status={r.status_code}")
+
 # NEW: include router
 app.include_router(drone_router)
 
@@ -32,24 +53,16 @@ def health():
     return {"ok": True}
 
 @app.post("/v1/intrusion/events")
-async def intrusion_events(
-    request: Request,
-    x_api_key: Optional[str] = Header(default=None, convert_underscores=False),
-):
-    enforce_api_key(x_api_key)
+async def intrusion_events(request: Request, background: BackgroundTasks):
     enforce_lan_only(request)
+    enforce_api_key(request)
 
-    body_bytes = await request.body()
-    if len(body_bytes) > MAX_BODY_BYTES:
-        raise HTTPException(status_code=413, detail="Payload too large")
+    body = await request.json()
+    print("INTRUSION EVENT:", body)
 
-    try:
-        payload = IntrusionEvent.model_validate_json(body_bytes)
-    except Exception:
-        raise HTTPException(status_code=422, detail="Invalid payload")
+    cmd = build_scripted_flight_path(body)
+    print("[CMD] dispatching:", cmd)
 
-    if not allow(payload.device_id):
-        raise HTTPException(status_code=429, detail="Rate limited")
+    background.add_task(post_commands, cmd)
 
-    print("INTRUSION EVENT:", payload.model_dump())
     return {"ok": True, "received_at_ms": int(time.time() * 1000)}

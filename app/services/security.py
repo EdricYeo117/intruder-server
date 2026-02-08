@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-API_KEY = (os.getenv("API_KEY") or "").strip()  # required if non-empty
+API_KEY = (os.getenv("API_KEY") or os.getenv("RED_API_KEY") or "").strip() # required if non-empty
 ALLOW_LAN_ONLY = (os.getenv("ALLOW_LAN_ONLY", "true").lower() == "true")
 
 app = FastAPI()
