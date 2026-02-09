@@ -1,9 +1,9 @@
+# app/services/dji_controller_client.py
 import os
 import httpx
 from dotenv import load_dotenv
 
 load_dotenv()
-
 
 class DJIControllerClient:
     _singleton = None
@@ -47,15 +47,25 @@ class DJIControllerClient:
         except Exception:
             return {"raw": r.text}
 
+    async def _get(self, path: str) -> dict:
+        assert DJIControllerClient._http is not None
+        r = await DJIControllerClient._http.get(path, headers=self._headers())
+        r.raise_for_status()
+        try:
+            return r.json()
+        except Exception:
+            return {"raw": r.text}
+
+    async def health(self) -> dict:
+        return await self._get("/health")
+
     async def enable_virtual_stick(self, enabled: bool) -> dict:
-        # Android listener should accept {"enabled": true/false}
         return await self._post("/vs/enable", {"enabled": enabled})
 
     async def move_sticks(self, leftX: int, leftY: int, rightX: int, rightY: int) -> dict:
         return await self._post("/vs/move", {"leftX": leftX, "leftY": leftY, "rightX": rightX, "rightY": rightY})
 
     async def stop(self) -> dict:
-        # if you have /vs/stop on Android, use it; otherwise fallback to zeros
         try:
             return await self._post("/vs/stop", {})
         except Exception:

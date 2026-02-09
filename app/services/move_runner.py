@@ -1,6 +1,6 @@
+# app/services/move_runner.py
 import asyncio
 import time
-
 
 class MoveRunner:
     def __init__(self, client) -> None:
@@ -26,7 +26,6 @@ class MoveRunner:
 
     async def start(self, leftX: int, leftY: int, rightX: int, rightY: int, duration_ms: int, freq_hz: int) -> None:
         async with self._lock:
-            # stop any existing movement
             if self._task and not self._task.done():
                 self._task.cancel()
                 try:
@@ -43,12 +42,19 @@ class MoveRunner:
             }
             self._task = asyncio.create_task(self._loop(leftX, leftY, rightX, rightY, duration_ms, freq_hz))
 
+    async def start_and_wait(self, leftX: int, leftY: int, rightX: int, rightY: int, duration_ms: int, freq_hz: int) -> None:
+        await self.start(leftX, leftY, rightX, rightY, duration_ms, freq_hz)
+        # wait for current task to finish
+        async with self._lock:
+            t = self._task
+        if t:
+            await t
+
     async def _loop(self, leftX: int, leftY: int, rightX: int, rightY: int, duration_ms: int, freq_hz: int) -> None:
         interval = 1.0 / float(freq_hz)
         end = time.time() + (duration_ms / 1000.0)
 
         try:
-            # safe to call every time
             await self._client.enable_virtual_stick(True)
             while time.time() < end:
                 await self._client.move_sticks(leftX, leftY, rightX, rightY)

@@ -2,8 +2,8 @@ import os
 import time
 from typing import Optional
 import httpx
-
-from fastapi import FastAPI, Header, HTTPException, Request, BackgroundTasks, Request, HTTPException
+from fastapi import FastAPI, BackgroundTasks, Request
+from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 
 from app.schemas.models import IntrusionEvent
@@ -19,6 +19,25 @@ load_dotenv()
 MAX_BODY_BYTES = int(os.getenv("MAX_BODY_BYTES", "8192"))
 
 app = FastAPI()
+@app.middleware("http")
+async def log_all_requests(request: Request, call_next):
+    start = time.time()
+    client_ip = request.client.host if request.client else "?"
+    client_port = request.client.port if request.client else "?"
+    path = request.url.path
+
+    print(f"[REQ] {client_ip}:{client_port} {request.method} {path}")
+
+    try:
+        response = await call_next(request)
+    except Exception as e:
+        # If something crashes inside, you still see it
+        print(f"[ERR] {request.method} {path} exception={type(e).__name__}: {e}")
+        raise
+
+    ms = int((time.time() - start) * 1000)
+    print(f"[RES] {request.method} {path} -> {response.status_code} ({ms}ms)")
+    return response
 
 DRONE_COMMAND_URL = os.getenv("DRONE_COMMAND_URL", "http://127.0.0.1:9090/commands")
 
@@ -53,16 +72,14 @@ def health():
     return {"ok": True}
 
 @app.post("/v1/intrusion/events")
-async def intrusion_events(request: Request, background: BackgroundTasks):
+async def intrusion_events(event: IntrusionEvent, request: Request, background: BackgroundTasks):
     enforce_lan_only(request)
     enforce_api_key(request)
 
-    body = await request.json()
-    print("INTRUSION EVENT:", body)
+    print("INTRUSION EVENT:", event.model_dump())
 
-    cmd = build_scripted_flight_path(body)
+    cmd = build_scripted_flight_path(event.model_dump())
     print("[CMD] dispatching:", cmd)
 
     background.add_task(post_commands, cmd)
-
     return {"ok": True, "received_at_ms": int(time.time() * 1000)}
