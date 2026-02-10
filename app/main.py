@@ -22,6 +22,33 @@ DRONE_DEVICE_ID = os.getenv("DRONE_DEVICE_ID", "android-controller-01")
 SERVER_PUBLIC_BASE = os.getenv("SERVER_PUBLIC_BASE", "http://192.168.1.49:8080") 
 
 app = FastAPI()
+@app.on_event("startup")
+async def _startup():
+    print("[BOOT] intruder-server starting up")
+    print(f"[BOOT] DRONE_DEVICE_ID={DRONE_DEVICE_ID}")
+    print(f"[BOOT] SERVER_PUBLIC_BASE={SERVER_PUBLIC_BASE}")
+
+    # show which SSE devices are currently connected (will be empty at boot)
+    try:
+        from .api.endpoints import drone_sse
+        print("[BOOT] SSE router mounted: /v1/drone/stream, /v1/drone/clients, /v1/drone/ack")
+    except Exception as e:
+        print(f"[BOOT] SSE import check failed: {type(e).__name__}: {e}")
+
+    # Optional: print all registered routes (helps confirm routers are included)
+    try:
+        routes = []
+        for r in app.routes:
+            methods = ",".join(sorted(getattr(r, "methods", []) or []))
+            routes.append(f"{methods:12s} {getattr(r, 'path', '')}")
+        print("[BOOT] Registered routes:")
+        for line in routes:
+            print("  " + line)
+    except Exception as e:
+        print(f"[BOOT] route listing failed: {type(e).__name__}: {e}")
+
+    print("[BOOT] startup complete")
+
 @app.middleware("http")
 async def log_all_requests(request: Request, call_next):
     start = time.time()
