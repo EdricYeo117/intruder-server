@@ -11,9 +11,9 @@ from app.services.security import enforce_api_key, enforce_lan_only
 from app.services.rate_limit import allow
 
 # NEW:
-from .api.endpoints.drone import router as drone_router
-from .api.endpoints.drone_sse import router as drone_sse_router, enqueue_command
-from .services.dji_controller_client import DJIControllerClient
+from app.api.endpoints.drone import router as drone_router
+from app.api.endpoints.drone_sse import router as drone_sse_router, enqueue_command
+from app.services.dji_controller_client import DJIControllerClient
 
 load_dotenv()
 
