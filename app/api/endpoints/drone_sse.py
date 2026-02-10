@@ -47,6 +47,9 @@ async def enqueue_command(device_id: str, cmd_type: str, payload: dict, command_
 
     async with _subs_lock:
         qs = list(_subs.get(device_id, set()))
+        total = sum(len(v) for v in _subs.values())
+
+    print(f"[SSE] ENQUEUE device_id={device_id} cmd_type={cmd_type} subs_for_device={len(qs)} total_subs={total} command_id={command_id}")
 
     # if nobody connected, you can decide to drop, or store for later replay
     for q in qs:
@@ -63,6 +66,10 @@ async def drone_stream(request: Request, device_id: str):
 
     async with _subs_lock:
         _subs.setdefault(device_id, set()).add(q)
+        total = sum(len(v) for v in _subs.values())
+        per = len(_subs.get(device_id, set()))
+
+    print(f"[SSE] CONNECT device_id={device_id} from={request.client.host if request.client else '?'} subs_for_device={per} total_subs={total}")
 
     async def gen():
         # initial hello (optional)
@@ -93,6 +100,9 @@ async def drone_stream(request: Request, device_id: str):
                     s.discard(q)
                     if not s:
                         _subs.pop(device_id, None)
+                total = sum(len(v) for v in _subs.values())
+                per = len(_subs.get(device_id, set()))
+            print(f"[SSE] DISCONNECT device_id={device_id} subs_for_device={per} total_subs={total}")
 
     return StreamingResponse(gen(), media_type="text/event-stream")
 
@@ -110,17 +120,24 @@ async def drone_ack(body: dict):
     if not device_id or not command_id:
         raise HTTPException(status_code=400, detail="Missing device_id/command_id")
 
-    meta = _pending.get(command_id)
-    # optional: validate ack belongs to that device_id
+   
     if meta and meta.get("device_id") != device_id:
         raise HTTPException(status_code=400, detail="Ack device mismatch")
 
     # mark as done
-    # None)
+    removed = _pending.pop(command_id, None)
+
+    print(
+        f"[ACK] device_id={device_id} command_id={command_id} "
+        f"ok={ok} error={error} pending_found={removed is not None}"
+    )
 
     return {"ok": True, "device_id": device_id, "command_id": command_id, "ack_ok": ok, "error": error}
 
 @router.get("/v1/drone/clients")
 async def clients():
     async with _subs_lock:
-        return {k: len(v) for k, v in _subs.items()}
+        return {
+            "devices": {k: len(v) for k, v in _subs.items()},
+            "total_subs": sum(len(v) for v in _subs.values()),
+        }
