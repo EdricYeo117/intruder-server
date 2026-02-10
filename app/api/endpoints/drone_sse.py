@@ -120,11 +120,12 @@ async def drone_ack(body: dict):
     if not device_id or not command_id:
         raise HTTPException(status_code=400, detail="Missing device_id/command_id")
 
-   
+    meta = _pending.get(command_id)  # <-- THIS was missing
+
+    # optional: validate ack belongs to that device_id
     if meta and meta.get("device_id") != device_id:
         raise HTTPException(status_code=400, detail="Ack device mismatch")
 
-    # mark as done
     removed = _pending.pop(command_id, None)
 
     print(
