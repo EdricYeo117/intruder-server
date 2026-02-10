@@ -12,11 +12,14 @@ from app.services.rate_limit import allow
 
 # NEW:
 from .api.endpoints.drone import router as drone_router
+from .api.endpoints.drone_sse import router as drone_sse_router, enqueue_command
 from .services.dji_controller_client import DJIControllerClient
 
 load_dotenv()
 
 MAX_BODY_BYTES = int(os.getenv("MAX_BODY_BYTES", "8192"))
+DRONE_DEVICE_ID = os.getenv("DRONE_DEVICE_ID", "android-controller-01")
+SERVER_PUBLIC_BASE = os.getenv("SERVER_PUBLIC_BASE", "http://192.168.1.49:8080") 
 
 app = FastAPI()
 @app.middleware("http")
@@ -61,6 +64,7 @@ async def post_commands(cmd_payload: dict) -> None:
 
 # NEW: include router
 app.include_router(drone_router)
+app.include_router(drone_sse_router)
 
 # NEW: clean shutdown for httpx client
 @app.on_event("shutdown")
@@ -76,10 +80,44 @@ async def intrusion_events(event: IntrusionEvent, request: Request, background: 
     enforce_lan_only(request)
     enforce_api_key(request)
 
-    print("INTRUSION EVENT:", event.model_dump())
+    payload = event.model_dump()
+    print("INTRUSION EVENT:", payload)
 
-    cmd = build_scripted_flight_path(event.model_dump())
+    # OPTIONAL: keep your old cmd print for logging only
+    cmd = build_scripted_flight_path(payload)
     print("[CMD] dispatching:", cmd)
 
-    background.add_task(post_commands, cmd)
+    # NEW: send mission over SSE to the DJI controller device
+    background.add_task(dispatch_intrusion_mission, payload)
+    print("[SSE] queued dispatch_intrusion_mission")
+
     return {"ok": True, "received_at_ms": int(time.time() * 1000)}
+
+
+async def dispatch_intrusion_mission(source_event: dict) -> None:
+    # 1) enable VS
+    await enqueue_command(
+        device_id=DRONE_DEVICE_ID,
+        cmd_type="VS_ENABLE",
+        payload={"enabled": True, "reason": "intrusion", "source_event": source_event},
+    )
+
+    # 2) move sequence
+    moves = [
+        {"leftX": 0, "leftY": 0, "rightX": 0, "rightY": 0.25, "durationMs": 800, "hz": 25},
+        {"leftX": 0, "leftY": 0, "rightX": 0, "rightY": -0.25, "durationMs": 800, "hz": 25},
+        {"leftX": 0, "leftY": 0, "rightX": 0.25, "rightY": 0, "durationMs": 800, "hz": 25},
+        {"leftX": 0, "leftY": 0, "rightX": -0.25, "durationMs": 800, "hz": 25},
+    ]
+    await enqueue_command(
+        device_id=DRONE_DEVICE_ID,
+        cmd_type="MOVE_SEQUENCE",
+        payload={"moves": moves, "defaultHz": 25},
+    )
+
+    # 3) snapshot (controller uploads back to server)
+    await enqueue_command(
+        device_id=DRONE_DEVICE_ID,
+        cmd_type="SNAPSHOT",
+        payload={"upload_url": f"{SERVER_PUBLIC_BASE}/v1/drone/uploads/photo"},
+    )
