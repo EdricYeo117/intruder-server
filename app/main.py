@@ -13,6 +13,7 @@ from app.services.rate_limit import allow
 # NEW:
 from app.api.endpoints.drone import router as drone_router
 from app.api.endpoints.drone_sse import router as drone_sse_router, enqueue_command
+from app.api.endpoints.drone_uploads import router as drone_uploads_router
 from app.services.dji_controller_client import DJIControllerClient
 
 load_dotenv()
@@ -92,6 +93,7 @@ async def post_commands(cmd_payload: dict) -> None:
 # NEW: include router
 app.include_router(drone_router)
 app.include_router(drone_sse_router)
+app.include_router(drone_uploads_router)
 
 # NEW: clean shutdown for httpx client
 @app.on_event("shutdown")

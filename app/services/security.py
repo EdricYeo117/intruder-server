@@ -1,14 +1,11 @@
 import os
-import time
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import HTTPException, Request
 from dotenv import load_dotenv
 
 load_dotenv()
 
-API_KEY = (os.getenv("API_KEY") or os.getenv("RED_API_KEY") or "").strip() # required if non-empty
+API_KEY = (os.getenv("API_KEY") or os.getenv("RED_API_KEY") or "").strip()  # required if non-empty
 ALLOW_LAN_ONLY = (os.getenv("ALLOW_LAN_ONLY", "true").lower() == "true")
-
-app = FastAPI()
 
 _PRIVATE_PREFIXES = (
     "127.", "192.168.", "10.",
@@ -34,9 +31,23 @@ def enforce_lan_only(request: Request) -> None:
     if ip and not _is_private(ip):
         raise HTTPException(status_code=403, detail="Forbidden (LAN only)")
 
-def enforce_api_key(request: Request) -> None:
-    # Read raw headers directly (case-insensitive in Starlette)
-    received = (request.headers.get("x-api-key") or "").strip()
+def enforce_api_key(arg=None, *, x_api_key: str | None = None) -> None:
+    """
+    Backwards compatible:
+
+      enforce_api_key(request)          # preferred (reads request headers)
+      enforce_api_key(x_api_key="...")  # allowed
+      enforce_api_key("...")            # allowed
+
+    """
+    received = ""
+
+    if isinstance(arg, Request):
+        received = (arg.headers.get("x-api-key") or "").strip()
+    elif isinstance(arg, str):
+        received = (arg or "").strip()
+    elif x_api_key is not None:
+        received = (x_api_key or "").strip()
 
     print(f"[AUTH] expected={_mask(API_KEY)} received={_mask(received)} raw_received_len={len(received)}")
 
