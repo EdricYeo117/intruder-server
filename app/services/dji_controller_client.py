@@ -79,9 +79,10 @@ class DJIControllerClient:
     async def health(self) -> dict:
         return await self._get("/v1/drone/status")
 
-    async def enable_virtual_stick(self, enabled: bool) -> dict:
-        # Controller expects {"enable": true}
-        return await self._post("/v1/drone/vs/enable", {"enable": enabled})
+    async def enable_virtual_stick(self, enabled: bool, advanced: bool = False):
+        url = f"{self.base_url}/v1/drone/vs/enable"
+        payload = {"enabled": enabled, "advanced": advanced}
+        return await self._post_json(url, payload)
 
     async def stop(self) -> dict:
         return await self._post("/v1/drone/vs/stop", {})

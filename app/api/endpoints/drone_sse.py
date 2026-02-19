@@ -159,10 +159,5 @@ async def send_command(request: Request, body: dict):
     if not cmd_type:
         raise HTTPException(status_code=400, detail="Missing cmd_type")
 
-    await enqueue_command(
-        device_id=device_id,
-        cmd_type=cmd_type,
-        payload=payload,
-        command_id=command_id
-    )
-    return {"ok": True, "device_id": device_id, "cmd_type": cmd_type, "command_id": command_id}
+    final_id = await enqueue_command(device_id=device_id, cmd_type=cmd_type, payload=payload, command_id=command_id)
+    return {"ok": True, "device_id": device_id, "cmd_type": cmd_type, "command_id": final_id}

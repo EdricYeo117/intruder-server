@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 
 class EnableVSRequest(BaseModel):
     enabled: bool = True
+    advanced: Optional[bool] = False
 
 class MoveSequenceRequest(BaseModel):
     leftX: int = Field(0, ge=-660, le=660)

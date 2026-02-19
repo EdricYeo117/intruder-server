@@ -49,7 +49,7 @@ async def vs_enable(body: EnableVSRequest, request: Request):
     enforce_lan_only(request)
 
     try:
-        resp = await _client.enable_virtual_stick(body.enabled)
+        resp = await _client.enable_virtual_stick(body.enabled, body.advanced or False)
     except Exception as e:
         _raise_controller_http_error(e)
 
