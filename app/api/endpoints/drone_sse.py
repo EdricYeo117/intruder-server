@@ -6,6 +6,7 @@ import uuid
 from typing import Dict, Set, Optional
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import StreamingResponse
+from app.services.security import enforce_api_key, enforce_lan_only
 
 router = APIRouter()
 
@@ -26,6 +27,9 @@ def _sse(event: str, data_obj: dict, event_id: Optional[str] = None) -> str:
     out.append(f"data: {data}")
     out.append("")  # blank line terminates message
     return "\n".join(out) + "\n"
+
+def _sse_comment(line: str) -> str:
+    return f": {line}\n\n"
 
 async def enqueue_command(device_id: str, cmd_type: str, payload: dict, command_id: Optional[str] = None):
     """
@@ -103,7 +107,6 @@ async def drone_stream(request: Request, device_id: str):
                 total = sum(len(v) for v in _subs.values())
                 per = len(_subs.get(device_id, set()))
             print(f"[SSE] DISCONNECT device_id={device_id} subs_for_device={per} total_subs={total}")
-
     return StreamingResponse(gen(), media_type="text/event-stream")
 
 @router.post("/v1/drone/ack")
@@ -142,3 +145,24 @@ async def clients():
             "devices": {k: len(v) for k, v in _subs.items()},
             "total_subs": sum(len(v) for v in _subs.values()),
         }
+
+@router.post("/v1/drone/send")
+async def send_command(request: Request, body: dict):
+    enforce_lan_only(request)
+    enforce_api_key(request)
+
+    device_id = (body.get("device_id") or "android-controller-01").strip()
+    cmd_type = (body.get("cmd_type") or "").strip()
+    payload = body.get("payload") or {}
+    command_id = body.get("command_id")  # optional
+
+    if not cmd_type:
+        raise HTTPException(status_code=400, detail="Missing cmd_type")
+
+    await enqueue_command(
+        device_id=device_id,
+        cmd_type=cmd_type,
+        payload=payload,
+        command_id=command_id
+    )
+    return {"ok": True, "device_id": device_id, "cmd_type": cmd_type, "command_id": command_id}

@@ -1,10 +1,11 @@
+# app/services/security.py
 import os
 from fastapi import HTTPException, Request
 from dotenv import load_dotenv
 
 load_dotenv()
 
-API_KEY = (os.getenv("API_KEY") or os.getenv("RED_API_KEY") or "").strip()  # required if non-empty
+API_KEY = (os.getenv("API_KEY") or os.getenv("RED_API_KEY") or "").strip()
 ALLOW_LAN_ONLY = (os.getenv("ALLOW_LAN_ONLY", "true").lower() == "true")
 
 _PRIVATE_PREFIXES = (
@@ -34,11 +35,9 @@ def enforce_lan_only(request: Request) -> None:
 def enforce_api_key(arg=None, *, x_api_key: str | None = None) -> None:
     """
     Backwards compatible:
-
-      enforce_api_key(request)          # preferred (reads request headers)
-      enforce_api_key(x_api_key="...")  # allowed
-      enforce_api_key("...")            # allowed
-
+      enforce_api_key(request)
+      enforce_api_key("api-key")
+      enforce_api_key(x_api_key="api-key")
     """
     received = ""
 
@@ -49,20 +48,7 @@ def enforce_api_key(arg=None, *, x_api_key: str | None = None) -> None:
     elif x_api_key is not None:
         received = (x_api_key or "").strip()
 
-    print(f"[AUTH] expected={_mask(API_KEY)} received={_mask(received)} raw_received_len={len(received)}")
+    print(f"[AUTH] expected={_mask(API_KEY)} received={_mask(received)}")
 
     if API_KEY and received != API_KEY:
         raise HTTPException(status_code=401, detail="Invalid API key")
-
-@app.get("/health")
-def health():
-    return {"ok": True}
-
-@app.post("/v1/intrusion/events")
-async def intrusion_events(request: Request):
-    enforce_lan_only(request)
-    enforce_api_key(request)
-
-    body = await request.json()
-    print("INTRUSION EVENT:", body)
-    return {"ok": True, "received_at_ms": int(time.time() * 1000)}

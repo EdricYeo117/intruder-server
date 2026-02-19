@@ -1,6 +1,7 @@
 # app/api/endpoints/drone.py
 import os
 import time
+import httpx
 from fastapi import APIRouter, HTTPException, Request
 from dotenv import load_dotenv
 
@@ -18,6 +19,18 @@ DEFAULT_FREQ_HZ = int(os.getenv("DEFAULT_MOVE_FREQ_HZ", "25"))
 _client = DJIControllerClient.get_singleton()
 _runner = MoveRunner(_client)
 
+def _raise_controller_http_error(e: Exception) -> None:
+    # map network-ish errors to friendly HTTP codes
+    if isinstance(e, httpx.ConnectTimeout):
+        raise HTTPException(status_code=504, detail=f"Controller connect timeout: base_url={_client.base_url}")
+    if isinstance(e, httpx.ReadTimeout):
+        raise HTTPException(status_code=504, detail=f"Controller read timeout: base_url={_client.base_url}")
+    if isinstance(e, httpx.ConnectError):
+        raise HTTPException(status_code=502, detail=f"Controller connect error: base_url={_client.base_url} err={e}")
+    if isinstance(e, httpx.HTTPError):
+        raise HTTPException(status_code=502, detail=f"Controller HTTP error: base_url={_client.base_url} err={e}")
+    raise HTTPException(status_code=502, detail=f"Controller unreachable: base_url={_client.base_url} err={e}")
+
 @router.get("/v1/drone/ping")
 async def drone_ping(request: Request):
     enforce_api_key(request)
@@ -26,7 +39,7 @@ async def drone_ping(request: Request):
     try:
         resp = await _client.health()
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Controller unreachable: {e}")
+        _raise_controller_http_error(e)
 
     return {"ok": True, "controller": _client.base_url, "health": resp, "received_at_ms": int(time.time() * 1000)}
 
@@ -35,7 +48,11 @@ async def vs_enable(body: EnableVSRequest, request: Request):
     enforce_api_key(request)
     enforce_lan_only(request)
 
-    resp = await _client.enable_virtual_stick(body.enabled)
+    try:
+        resp = await _client.enable_virtual_stick(body.enabled)
+    except Exception as e:
+        _raise_controller_http_error(e)
+
     return {"ok": True, "data": resp, "received_at_ms": int(time.time() * 1000)}
 
 @router.post("/v1/drone/vs/moveSequence")
@@ -45,20 +62,24 @@ async def vs_move_sequence(body: MoveSequenceRequest, request: Request):
 
     freq_hz = body.freq_hz or DEFAULT_FREQ_HZ
 
-    if body.wait:
-        await _runner.start_and_wait(
-            leftX=body.leftX, leftY=body.leftY, rightX=body.rightX, rightY=body.rightY,
-            duration_ms=body.duration_ms, freq_hz=freq_hz
-        )
-    else:
-        await _runner.start(
-            leftX=body.leftX, leftY=body.leftY, rightX=body.rightX, rightY=body.rightY,
-            duration_ms=body.duration_ms, freq_hz=freq_hz
-        )
+    try:
+        if body.wait:
+            await _runner.start_and_wait(
+                leftX=body.leftX, leftY=body.leftY, rightX=body.rightX, rightY=body.rightY,
+                duration_ms=body.duration_ms, freq_hz=freq_hz
+            )
+        else:
+            await _runner.start(
+                leftX=body.leftX, leftY=body.leftY, rightX=body.rightX, rightY=body.rightY,
+                duration_ms=body.duration_ms, freq_hz=freq_hz
+            )
 
-    photo_resp = None
-    if body.take_photo_after:
-        photo_resp = await _client.take_photo(upload_url=body.upload_url)
+        photo_resp = None
+        if body.take_photo_after:
+            photo_resp = await _client.take_photo(upload_url=body.upload_url)
+
+    except Exception as e:
+        _raise_controller_http_error(e)
 
     return {
         "ok": True,
@@ -73,7 +94,11 @@ async def vs_stop(request: Request):
     enforce_api_key(request)
     enforce_lan_only(request)
 
-    await _runner.stop()
+    try:
+        await _runner.stop()
+    except Exception as e:
+        _raise_controller_http_error(e)
+
     return {"ok": True, "detail": "Stopped", "received_at_ms": int(time.time() * 1000)}
 
 @router.post("/v1/drone/media/photo")
@@ -81,5 +106,9 @@ async def take_photo(body: PhotoRequest, request: Request):
     enforce_api_key(request)
     enforce_lan_only(request)
 
-    resp = await _client.take_photo(upload_url=body.upload_url)
+    try:
+        resp = await _client.take_photo(upload_url=body.upload_url)
+    except Exception as e:
+        _raise_controller_http_error(e)
+
     return {"ok": True, "data": resp, "received_at_ms": int(time.time() * 1000)}
