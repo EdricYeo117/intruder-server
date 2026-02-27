@@ -1,4 +1,5 @@
 # app/schemas/drone.py
+from typing import Optional
 from pydantic import BaseModel, Field
 
 class EnableVSRequest(BaseModel):

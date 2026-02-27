@@ -9,7 +9,7 @@ router = APIRouter()
 # in-memory state (good enough for LAN demo)
 _live = {}  # device_id -> {rtmp_url, started_at_ms}
 
-RTMP_INGEST_BASE = os.getenv("RTMP_INGEST_BASE", "rtmp://192.168.1.49/live")
+RTMP_INGEST_BASE = os.getenv("RTMP_INGEST_BASE", "rtmp://192.168.1.49:1935/live")
 # Optional: where clients should PLAY (depends on your media server)
 PLAY_BASE = os.getenv("STREAM_PLAY_BASE", "")  # e.g. "http://192.168.1.49:8080/live"
 

@@ -1,0 +1,23 @@
+services:
+  api:
+    build: .
+    container_name: intruder-api
+    ports:
+      - "8080:8080"
+    environment:
+      # IMPORTANT: your DJI controller is outside Docker, so give it a URL it can reach.
+      # RTMP default port is 1935.
+      - RTMP_INGEST_BASE=rtmp://192.168.1.49:1935/live
+      # Optional: SRS HTTP is mapped to host 8081 below, avoid clashing with FastAPI 8080
+      - STREAM_PLAY_BASE=http://192.168.1.49:8081
+    depends_on:
+      - srs
+
+  srs:
+    image: ossrs/srs:6
+    container_name: srs
+    ports:
+      - "1935:1935" # RTMP ingest
+      - "1985:1985" # SRS API
+      - "8081:8080" # SRS HTTP (mapped to 8081 to avoid conflict with FastAPI)
+    command: [ "./objs/srs", "-c", "conf/rtmp.conf" ]
