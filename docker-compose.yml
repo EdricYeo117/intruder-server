@@ -5,25 +5,14 @@ services:
     ports:
       - "8080:8080"
     environment:
-      # Existing
+      - CONTROLLER_BASE_URL=http://192.168.1.49:9000
       - RTMP_INGEST_BASE=rtmp://192.168.1.49:1935/live
       - STREAM_PLAY_BASE=http://192.168.1.49:8081
-
-      # NEW: HumanAnalyzer needs this checkpoint path INSIDE container
       - FAIRFACE_CKPT=/app/models/fairface_alldata_4race_20191111.pt
-
-      # NEW: where uploads should be stored INSIDE container
       - DRONE_UPLOAD_DIR=/app/uploads
-
-      # Optional (if your security module uses it)
-      # - X_API_KEY=your_key_here
-      # or whatever your intruder-server reads
-
     volumes:
-      # Mount local folders into container
       - ./models:/app/models
       - ./uploads:/app/uploads
-
     depends_on:
       - srs
 

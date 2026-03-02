@@ -5,8 +5,6 @@ python-dotenv
 httpx==0.27.2
 python-multipart
 
-# --- Human analyzer deps ---
 numpy<2.2
-opencv-python-headless
 mediapipe==0.10.14
-pandas
+opencv-python-headless==4.13.0.92
