@@ -1,0 +1,42 @@
+# Python / venv
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local env / secrets
+.env
+**/.env
+
+# Uploads / generated files
+uploads/
+drone_photos/
+drone_videos/
+drone_live_frames/
+drone_human_frames/
+*.jpg
+*.jpeg
+*.png
+*.mp4
+*.mov
+*.h264
+*.h265
+*.csv
+*.log
+
+# Model weights (don’t bake into image unless you want to)
+models/*.pt
+models/*.pth
+models/*.onnx
+models/*.safetensors
+
+# Editor
+.vscode/
+.idea/
+
+# Git
+.git/
+.gitignore

@@ -5,11 +5,25 @@ services:
     ports:
       - "8080:8080"
     environment:
-      # IMPORTANT: your DJI controller is outside Docker, so give it a URL it can reach.
-      # RTMP default port is 1935.
+      # Existing
       - RTMP_INGEST_BASE=rtmp://192.168.1.49:1935/live
-      # Optional: SRS HTTP is mapped to host 8081 below, avoid clashing with FastAPI 8080
       - STREAM_PLAY_BASE=http://192.168.1.49:8081
+
+      # NEW: HumanAnalyzer needs this checkpoint path INSIDE container
+      - FAIRFACE_CKPT=/app/models/fairface_alldata_4race_20191111.pt
+
+      # NEW: where uploads should be stored INSIDE container
+      - DRONE_UPLOAD_DIR=/app/uploads
+
+      # Optional (if your security module uses it)
+      # - X_API_KEY=your_key_here
+      # or whatever your intruder-server reads
+
+    volumes:
+      # Mount local folders into container
+      - ./models:/app/models
+      - ./uploads:/app/uploads
+
     depends_on:
       - srs
 
@@ -19,5 +33,5 @@ services:
     ports:
       - "1935:1935" # RTMP ingest
       - "1985:1985" # SRS API
-      - "8081:8080" # SRS HTTP (mapped to 8081 to avoid conflict with FastAPI)
-    command: [ "./objs/srs", "-c", "conf/rtmp.conf" ]
+      - "8081:8080" # SRS HTTP (mapped to 8081)
+    command: ["./objs/srs", "-c", "conf/rtmp.conf"]

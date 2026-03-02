@@ -2,6 +2,7 @@
 import os, time
 from fastapi import APIRouter, UploadFile, File, Request
 from app.services.security import enforce_api_key, enforce_lan_only
+from app.services.human_analyzer import HumanAnalyzer
 
 router = APIRouter()
 
@@ -43,3 +44,32 @@ async def upload_video(request: Request, file: UploadFile = File(...)):
             f.write(chunk)
 
     return {"ok": True, "saved_to": out_path}
+
+_analyzer: HumanAnalyzer | None = None
+
+@router.on_event("startup")
+def _startup():
+    global _analyzer
+    _analyzer = HumanAnalyzer()
+
+@router.post("/v1/drone/uploads/frame")
+async def upload_frame_for_inference(
+    request: Request,
+    file: UploadFile = File(...),
+    device_id: str | None = None,
+    ts_ms: int | None = None,
+):
+    enforce_lan_only(request)
+    enforce_api_key(request)
+
+    data = await file.read()
+    if not data:
+        return {"ok": False, "error": "empty frame"}
+
+    if _analyzer is None:
+        return {"ok": False, "error": "analyzer not ready"}
+
+    result = _analyzer.analyze_image_bytes(data)
+    result["device_id"] = device_id
+    result["ts_ms"] = ts_ms
+    return result
