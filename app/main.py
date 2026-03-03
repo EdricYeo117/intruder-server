@@ -16,6 +16,8 @@ from app.api.endpoints.drone_sse import router as drone_sse_router, enqueue_comm
 from app.api.endpoints.drone_uploads import router as drone_uploads_router
 from app.api.endpoints.drone_livestream import router as drone_livestream_router
 from app.services.dji_controller_client import DJIControllerClient
+from app.api.endpoints.drone_frame_snapshot_analyze import router as drone_frame_snapshot_analyze_router
+from app.api.endpoints.analysis import router as analysis_router
 
 load_dotenv()
 
@@ -96,6 +98,8 @@ app.include_router(drone_router)
 app.include_router(drone_sse_router)
 app.include_router(drone_uploads_router)
 app.include_router(drone_livestream_router)
+app.include_router(drone_frame_snapshot_analyze_router) 
+app.include_router(analysis_router)
 
 # NEW: clean shutdown for httpx client
 @app.on_event("shutdown")

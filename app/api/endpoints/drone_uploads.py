@@ -1,8 +1,9 @@
 # app/api/endpoints/drone_uploads.py
 import os, time
-from fastapi import APIRouter, UploadFile, File, Request
+from fastapi import APIRouter, UploadFile, File, Request, Query
 from app.services.security import enforce_api_key, enforce_lan_only
 from app.services.human_analyzer import HumanAnalyzer
+from app.services.photo_wait_registry import REGISTRY
 
 router = APIRouter()
 
@@ -10,7 +11,11 @@ UPLOAD_DIR = os.getenv("DRONE_UPLOAD_DIR", "./uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @router.post("/v1/drone/uploads/photo")
-async def upload_photo(request: Request, file: UploadFile = File(...)):
+async def upload_photo(
+    request: Request,
+    file: UploadFile = File(...),
+    command_id: str | None = Query(None),   # NEW
+):
     enforce_lan_only(request)
     enforce_api_key(request)
 
@@ -21,11 +26,15 @@ async def upload_photo(request: Request, file: UploadFile = File(...)):
     with open(out_path, "wb") as f:
         while True:
             chunk = await file.read(1024 * 1024)
-            if not chunk:   
+            if not chunk:
                 break
             f.write(chunk)
 
-    return {"ok": True, "saved_to": out_path}
+    # NEW: unblock waiting endpoint
+    if command_id:
+        await REGISTRY.fulfill(command_id, out_path)
+
+    return {"ok": True, "saved_to": out_path, "command_id": command_id}
 
 @router.post("/v1/drone/uploads/video")
 async def upload_video(request: Request, file: UploadFile = File(...)):
@@ -62,13 +71,13 @@ async def upload_frame_for_inference(
     enforce_lan_only(request)
     enforce_api_key(request)
 
-    data = await file.read()
+    data = await file.read()    
     if not data:
         return {"ok": False, "error": "empty frame"}
 
     if _analyzer is None:
         return {"ok": False, "error": "analyzer not ready"}
-
+    print(f"[UPLOAD_FRAME] from={request.client.host} bytes={len(data)} filename={file.filename}")
     result = _analyzer.analyze_image_bytes(data)
     result["device_id"] = device_id
     result["ts_ms"] = ts_ms

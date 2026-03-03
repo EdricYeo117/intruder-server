@@ -9,6 +9,7 @@ services:
     volumes:
       - ./models:/app/models
       - ./uploads:/app/uploads
+      - ./analysis:/app/analysis
     depends_on:
       - srs
 

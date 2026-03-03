@@ -1,70 +1,61 @@
-# --- Python ---
+# ===== Python =====
 __pycache__/
 *.py[cod]
-*$py.class
 *.pyo
+*.pyd
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 .cache/
+.coverage
+coverage.xml
+htmlcov/
 
-# --- Virtual environments ---
+# ===== Virtual envs =====
 .venv/
 venv/
-env/
 ENV/
-.vscode/.python
-pip-wheel-metadata/
+env/
 
-# --- Environment / secrets ---
-.env
-**/.env
-.env.*
-!.env.example
-
-# --- Uploads / generated media ---
-uploads/
-drone_photos/
-drone_videos/
-drone_live_frames/
-drone_human_frames/
-*.jpg
-*.jpeg
-*.png
-*.mp4
-*.mov
-*.h264
-*.h265
-*.csv
-
-# If you ONLY want to ignore media under specific folders, remove the
-# global *.jpg/*.mp4 patterns above and keep folder ignores instead.
-
-# --- Model checkpoints (don’t commit large weights) ---
-models/*.pt
-models/*.pth
-models/*.onnx
-models/*.safetensors
-
-# If you want to keep the folder but not weights:
-!models/.gitkeep
-
-# --- Logs ---
-*.log
-logs/
-
-# --- OS / Editor ---
-.DS_Store
-Thumbs.db
+# ===== IDE / OS =====
 .vscode/
 .idea/
 *.iml
+.DS_Store
+Thumbs.db
 
-# --- Docker / compose local overrides ---
-docker-compose.override.yml
+# ===== Logs =====
+*.log
 
-# --- Node (if any tooling exists later) ---
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# ===== Local env / secrets =====
+.env
+.env.*
+!.env.example
+
+# ===== Runtime output =====
+uploads/
+analysis/
+*.sqlite3
+
+# ===== Media / large binaries =====
+*.mp4
+*.mov
+*.avi
+*.mkv
+
+# ===== Model checkpoints (keep folder structure, not the weights) =====
+models/*.pt
+models/*.pth
+models/*.onnx
+models/*.tflite
+
+# If you want to keep a placeholder so the folder exists:
+!models/.gitkeep
+
+# ===== Docker =====
+**/.dockerignore.swp
