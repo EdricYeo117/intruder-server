@@ -1,15 +1,11 @@
 services:
   api:
+    env_file:
+      - .env
     build: .
     container_name: intruder-api
     ports:
       - "8080:8080"
-    environment:
-      - CONTROLLER_BASE_URL=http://192.168.1.49:9000
-      - RTMP_INGEST_BASE=rtmp://192.168.1.49:1935/live
-      - STREAM_PLAY_BASE=http://192.168.1.49:8081
-      - FAIRFACE_CKPT=/app/models/fairface_alldata_4race_20191111.pt
-      - DRONE_UPLOAD_DIR=/app/uploads
     volumes:
       - ./models:/app/models
       - ./uploads:/app/uploads
@@ -23,4 +19,4 @@ services:
       - "1935:1935" # RTMP ingest
       - "1985:1985" # SRS API
       - "8081:8080" # SRS HTTP (mapped to 8081)
-    command: ["./objs/srs", "-c", "conf/rtmp.conf"]
+    command: [ "./objs/srs", "-c", "conf/rtmp.conf" ]
