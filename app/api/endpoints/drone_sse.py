@@ -31,12 +31,7 @@ def _sse(event: str, data_obj: dict, event_id: Optional[str] = None) -> str:
 def _sse_comment(line: str) -> str:
     return f": {line}\n\n"
 
-async def enqueue_command(device_id: str, cmd_type: str, payload: dict, command_id: Optional[str] = None):
-    """
-    Push a single command to all active SSE subscribers for that device_id.
-    Command JSON must match your Android CommandDispatcher.kt schema:
-      { "cmd_type": "...", "command_id": "...", "payload": {...} }
-    """
+async def enqueue_command(device_id: str, cmd_type: str, payload: dict, command_id: Optional[str] = None) -> str:
     if command_id is None:
         command_id = str(uuid.uuid4())
 
@@ -46,7 +41,6 @@ async def enqueue_command(device_id: str, cmd_type: str, payload: dict, command_
         "payload": payload or {}
     }
 
-    # optional: track pending
     _pending[command_id] = {"device_id": device_id, "cmd": cmd, "ts_ms": int(time.time() * 1000)}
 
     async with _subs_lock:
@@ -55,13 +49,13 @@ async def enqueue_command(device_id: str, cmd_type: str, payload: dict, command_
 
     print(f"[SSE] ENQUEUE device_id={device_id} cmd_type={cmd_type} subs_for_device={len(qs)} total_subs={total} command_id={command_id}")
 
-    # if nobody connected, you can decide to drop, or store for later replay
     for q in qs:
-        # avoid blocking if client is slow
         try:
             q.put_nowait(cmd)
         except asyncio.QueueFull:
             pass
+
+    return command_id  # NEW
 
 @router.get("/v1/drone/stream")
 async def drone_stream(request: Request, device_id: str):

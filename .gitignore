@@ -1,0 +1,61 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# ===== Virtual envs =====
+.venv/
+venv/
+ENV/
+env/
+
+# ===== IDE / OS =====
+.vscode/
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+
+# ===== Logs =====
+*.log
+
+# ===== Local env / secrets =====
+.env
+.env.*
+!.env.example
+
+# ===== Runtime output =====
+uploads/
+analysis/
+*.sqlite3
+
+# ===== Media / large binaries =====
+*.mp4
+*.mov
+*.avi
+*.mkv
+
+# ===== Model checkpoints (keep folder structure, not the weights) =====
+models/*.pt
+models/*.pth
+models/*.onnx
+models/*.tflite
+
+# If you want to keep a placeholder so the folder exists:
+!models/.gitkeep
+
+# ===== Docker =====
+**/.dockerignore.swp
